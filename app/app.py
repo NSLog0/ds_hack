@@ -3,7 +3,8 @@ import os
 from flask import Flask, jsonify
 # from flask_cors import CORS, cross_origin
 from flask import request
-from flask_restplus import Resource, Api, fields
+from flask_restplus import Resource, Api, fields,reqparse
+from flask_cors import CORS, cross_origin
 import hashlib
 import json
 
@@ -16,7 +17,7 @@ def create_app(test_config=None):
     app.config.SWAGGER_UI_DOC_EXPANSION = 'list'
     api = Api(app, version='1.0', title='Sample API',
               description='A sample API')
-    # cors = CORS(app, resources={r"/*": {"origins": "*"}})
+    cors = CORS(app, resources={r"/*": {"origins": "*"}})
     app.config.from_mapping(
         SECRET_KEY='dev'
     )
@@ -30,7 +31,7 @@ def create_app(test_config=None):
         # load the test config if passed in
         app.config.from_mapping(test_config)
 
-    # app.config['CORS_HEADERS'] = 'application/json'
+    app.config['CORS_HEADERS'] = 'application/json'
 
     # ensure the instance folder exists
     try:
@@ -38,7 +39,7 @@ def create_app(test_config=None):
     except OSError:
         pass
 
-    parser = api.parser()
+    parser = reqparse.RequestParser()
     parser.add_argument('TESTID',        help='ID of RFT tests', location='form')
     parser.add_argument('WellID',        help='ID of Wells', location='form')
     parser.add_argument('DepthMD',       type=float,  help='RFT testing depth (along hole)', location='form')
@@ -55,39 +56,26 @@ def create_app(test_config=None):
     parser.add_argument('Thickness',     type=float,    help='Reservoir Thickness', location='form')
     parser.add_argument('Reservior',     help='Reservoir Name', location='form')
 
-    @api.route('{}/predictions'.format(api_version))
+    @cross_origin(origin='*')
+    @api.route('{}/predictions'.format(api_version), methods=["post"])
     class Predictions(Resource):
         @api.expect(parser)
         def post(self):
             args = parser.parse_args()
-            # import ipdb; ipdb.set_trace()
-            acc = mypd.predict(json.dumps(args))
-            is_nomal = 'OTHER'
-            fluid_type = 'not oil'
+            t = json.loads([ x for x in request.values.items()][0][0])
+
+            acc = mypd.predict(json.dumps(t))
+            is_normal = 'OTHER'
+            fluid_type = 'Not oil'
 
             if acc[1] == 1:
-                is_nomal = 'NORMAL'
+                is_normal = 'NORMAL'
             if acc[0] ==  1:
-                fluid_type = 'Oli'
+                fluid_type = 'Oil'
 
             return { "meta": { "code": 200, "message": "success" }, "data": {
-                'RFT': is_nomal, 'fluid_type': fluid_type,'mobility_score':
+                'RFT': is_normal, 'fluid_type': fluid_type,'mobility_score':
                 acc[2] } }
 
-
-
-    # parser = api.parser()
-    # parser.add_argument('sdfsdfs',        help='ID of RFT tests', location='form')
-    # @api.route('{}/predsssssssictions'.format(api_version))
-    # class Predicdfsdfstions(Resource):
-    #     @api.expect(parser)
-    #     def post(self):
-    #         args = parser.parse_args()
-    #         # import ipdb; ipdb.set_trace()
-    #         acc = mypd.predict(json.dumps(args))
-    #         ans = 'OTHER'
-    #         if acc[0] == 1:
-    #             ans = 'NORMAL'
-    #         return { "meta": { "code": 200, "message": "success" }, "data": { 'RFT': ans } }
 
     return app

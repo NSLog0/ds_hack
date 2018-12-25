@@ -36,13 +36,20 @@ class Predictor:
 
         reg_sample = sample[['Resist_deep', 'Resist_medium', 'Resist_short', 'Density', 'Neutron', 'GR']]
 
+       # import ipdb; ipdb.set_trace()
         sample = np.asarray(sample)
-        reg_sample = np.asarray(reg_sample)
+        print('---------------')
+        print(sample)
+        print('---------------')
+        reg_sample = np.asarray(reg_sample).astype(np.float)
+        
+        reg_sample = np.log(reg_sample + 0.01)
         x_test = ss.transform(sample)
 
         # predict fluid type
         fluid_type = fluid_clf.predict(x_test)[0] # 1: Oil, 0: Not Oil
         is_normal = clf.predict(x_test)[0] #1: NORMAL, 0: OTHER
         mobility_score = reg.predict(reg_sample)[0] # Mobility score
+
 
         return (fluid_type, is_normal, mobility_score)
